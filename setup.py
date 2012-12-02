@@ -4,7 +4,7 @@ import os
 version = "0.0.1"
 
 setup(
-    name='txCyrus',
+    name='tx.cyrus',
     version=version,
     description="Twisted Cyrus client library",
     long_description=open(
@@ -23,6 +23,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
+        'twisted',
         'setuptools'],
     entry_points="""
     # -*- Entry points: -*-
