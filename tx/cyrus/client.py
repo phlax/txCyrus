@@ -1,5 +1,6 @@
 import re
 
+from twisted.protocols import basic
 from twisted.internet import protocol
 from twisted.internet import ssl
 from twisted.mail import imap4
@@ -26,37 +27,22 @@ class CyrusClient(imap4.IMAP4Client):
             d, self.greetDeferred = self.greetDeferred, None
             d.callback(self)
 
-    def list(self, reference, wildcard):
-        """List a subset of the available mailboxes
-
-        This command is allowed in the Authenticated and Selected states.
-
-        @type reference: C{str}
-        @param reference: The context in which to interpret C{wildcard}
-
-        @type wildcard: C{str}
-        @param wildcard: The pattern of mailbox names to match, optionally
-        including either or both of the '*' and '%' wildcards.  '*' will
-        match zero or more characters and cross hierarchical boundaries.
-        '%' will also match zero or more characters, but is limited to a
-        single hierarchical level.
-
-        @rtype: C{Deferred}
-        @return: A deferred whose callback is invoked with a list of C{tuple}s,
-        the first element of which is a C{tuple} of mailbox flags, the second
-        element of which is the hierarchy delimiter for this mailbox, and the
-        third of which is the mailbox name; if the command is unsuccessful,
-        the deferred's errback is invoked instead.
-        """
+    def lm(self, pattern='*'):
+        if not pattern:
+            pattern = "*"
+        if pattern == '%':
+            reference = ''
+            wildcard = '%'
+        else:
+            reference = '*'
+            wildcard = pattern.encode('imap4-utf-7')
         cmd = 'LIST'
-        args = '"%s" "%s"' % (reference, wildcard.encode('imap4-utf-7'))
+        args = '"%s" %s' % (reference, wildcard)
         resp = ('LIST',)
         command = imap4.Command(cmd, args, wantResponse=resp)
         d = self.sendCommand(command)
         d.addCallback(self.__cbList, 'LIST')
         return d
-
-    lm = list
 
     def __cbList(self, (lines, last), command):
         results = []
@@ -171,6 +157,9 @@ class CyrusClient(imap4.IMAP4Client):
         if last == 'OK Completed':
             return True
 
+    def dam(self, mailbox, userid):
+        return self.sam(mailbox, userid, '""')
+
     def sam(self, mailbox, userid, rights):
         cmd = 'SETACL'
         args = '"%s" %s %s' % (
@@ -186,6 +175,25 @@ class CyrusClient(imap4.IMAP4Client):
     def __cbSetacl(self, (lines, last), command, mailbox):
         if last == 'OK Completed':
             return True
+
+    def sq(self, mailbox, quota):
+        cmd = 'SETQUOTA'
+        args = '"%s" %s' % (
+            mailbox.encode('imap4-utf-7'),
+            '(STORAGE %s)' % int(quota))
+        resp = ('SETQUOTA', )
+        command = CyrusCommand(cmd, str(args), wantResponse=resp)
+        d = self.sendCommand(command)
+        d.addCallback(self.__cbSetquota, 'SETQUOTA', mailbox)
+        return d
+
+    def __cbSetquota(self, (lines, last), command, mailbox):
+        if last == 'OK Completed':
+            return True
+
+    def sendLine(self, line):
+        print 'S:', repr(line)
+        return basic.LineReceiver.sendLine(self, line)
 
 
 class CyrusClientFactory(protocol.ReconnectingClientFactory):
