@@ -6,8 +6,9 @@ from twisted.internet import ssl
 from twisted.mail import imap4
 from twisted.python import log
 
-re_q0  = re.compile(r'(.*)\s\(\)')
-re_q   = re.compile(r'(.*)\s\(STORAGE (\d+) (\d+)\)')
+re_q0 = re.compile(r'(.*)\s\(\)')
+re_q = re.compile(r'(.*)\s\(STORAGE (\d+) (\d+)\)')
+
 
 class CyrusCommand(imap4.Command):
     _1_RESPONSES = (
@@ -66,12 +67,12 @@ class CyrusClient(imap4.IMAP4Client):
         for parts in lines:
             cmd = parts.pop(0)
             mailbox = parts.pop(0)
+            mailbox
             if cmd == command:
                 [results.append(perm)
                  for perm in
                  zip(*(iter(parts), ) * 2)]
         return results
-
 
     def lq(self, mailbox):
         cmd = 'GETQUOTA'
@@ -95,7 +96,8 @@ class CyrusClient(imap4.IMAP4Client):
 
     def _extraInfo(self, lines):
         # XXX - This is terrible.
-        # XXX - Also, this should collapse temporally proximate calls into single
+        # XXX - Also, this should collapse temporally
+        #       proximate calls into single
         #       invocations of IMailboxListener methods, where possible.
         flags = {}
         recent = exists = None
